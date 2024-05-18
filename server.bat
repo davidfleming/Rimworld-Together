@@ -1,0 +1,1 @@
+docker run -it --rm -v %cd%/Data:/Data -p 25555:25555 rwt:latest
