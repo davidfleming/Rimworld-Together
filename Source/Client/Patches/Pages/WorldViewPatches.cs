@@ -70,73 +70,107 @@ namespace GameClient
         {
             if (!Network.isConnectedToServer) return;
 
+            /*Log.Message($"[Rimworld Together Dev] > DoPost");*/
+
+            // If settlement is in a player faction
             if (FactionValues.playerFactions.Contains(__instance.Faction))
             {
                 var gizmoList = __result.ToList();
                 gizmoList.Clear();
 
-                Command_Action command_Likelihood = new Command_Action
+                // If settlement is not part of your faction
+                if (__instance.Faction != FactionValues.yourOnlineFaction)
                 {
-                    defaultLabel = "Change Likelihood",
-                    defaultDesc = "Change the likelihood of this settlement",
-                    icon = ContentFinder<Texture2D>.Get("Commands/Likelihood"),
-                    action = delegate
+                    Command_Action command_Likelihood = new Command_Action
                     {
-                        ClientValues.chosenSettlement = __instance;
+                        defaultLabel = "Change Likelihood",
+                        defaultDesc = "Change the likelihood of this settlement",
+                        icon = ContentFinder<Texture2D>.Get("Commands/Likelihood"),
+                        action = delegate
+                        {
+                            ClientValues.chosenSettlement = __instance;
 
-                        Action r1 = delegate { LikelihoodManager.TryRequestLikelihood(CommonEnumerators.Likelihoods.Enemy, 
-                            CommonEnumerators.LikelihoodTarget.Settlement); };
+                            Action r1 = delegate { LikelihoodManager.TryRequestLikelihood(CommonEnumerators.Likelihoods.Enemy, 
+                                CommonEnumerators.LikelihoodTarget.Settlement); };
 
-                        Action r2 = delegate { LikelihoodManager.TryRequestLikelihood(CommonEnumerators.Likelihoods.Neutral,
-                            CommonEnumerators.LikelihoodTarget.Settlement); };
+                            Action r2 = delegate { LikelihoodManager.TryRequestLikelihood(CommonEnumerators.Likelihoods.Neutral,
+                                CommonEnumerators.LikelihoodTarget.Settlement); };
 
-                        Action r3 = delegate { LikelihoodManager.TryRequestLikelihood(CommonEnumerators.Likelihoods.Ally,
-                            CommonEnumerators.LikelihoodTarget.Settlement); };
+                            Action r3 = delegate { LikelihoodManager.TryRequestLikelihood(CommonEnumerators.Likelihoods.Ally,
+                                CommonEnumerators.LikelihoodTarget.Settlement); };
 
-                        RT_Dialog_3Button d1 = new RT_Dialog_3Button("Change Likelihood", "Set settlement's likelihood to",
-                            "Enemy", "Neutral", "Ally", r1, r2, r3, null);
+                            RT_Dialog_3Button d1 = new RT_Dialog_3Button("Change Likelihood", "Set settlement's likelihood to",
+                                "Enemy", "Neutral", "Ally", r1, r2, r3, null);
 
-                        DialogManager.PushNewDialog(d1);
-                    }
-                };
+                            DialogManager.PushNewDialog(d1);
+                        }
+                    };
 
-                Command_Action command_FactionMenu = new Command_Action
+                    gizmoList.Add(command_Likelihood);
+                }
+
+                // If member of your faction
+                if (__instance.Faction == FactionValues.yourOnlineFaction)
                 {
-                    defaultLabel = "Faction Menu",
-                    defaultDesc = "Access your faction menu",
-                    icon = ContentFinder<Texture2D>.Get("Commands/FactionMenu"),
-                    action = delegate
+                    Command_Action command_ZoomInFactionMenu = new Command_Action
                     {
-                        ClientValues.chosenSettlement = __instance;
+                        defaultLabel = "Zoom In",
+                        defaultDesc = "Zoom in on faction member area",
+                        icon = ContentFinder<Texture2D>.Get("UI/Commands/ShowMap"),
+                        action = delegate
+                        {
+                            ClientValues.chosenSettlement = __instance;
 
-                        if (ClientValues.chosenSettlement.Faction == FactionValues.yourOnlineFaction) OnlineFactionManager.OnFactionOpenOnMember();
-                        else OnlineFactionManager.OnFactionOpenOnNonMember();
-                    }
-                };
+                            if (ServerValues.hasFaction) OnlineFactionManager.OnFactionOpen();
+                            else OnlineFactionManager.OnNoFactionOpen();
+                        }
+                    };
 
-                Command_Action command_Caravan = new Command_Action
+                    gizmoList.Add(command_ZoomInFactionMenu);
+                }
+
+                // If you are part of faction
+                if (ServerValues.hasFaction)
                 {
-                    defaultLabel = "Form Caravan",
-                    defaultDesc = "Form a new caravan",
-                    icon = ContentFinder<Texture2D>.Get("UI/Commands/FormCaravan"),
-                    action = delegate
+                    Command_Action command_FactionMenu = new Command_Action
                     {
-                        ClientValues.chosenSettlement = __instance;
+                        defaultLabel = "Faction Menu",
+                        defaultDesc = "Access your faction menu",
+                        icon = ContentFinder<Texture2D>.Get("Commands/FactionMenu"),
+                        action = delegate
+                        {
+                            ClientValues.chosenSettlement = __instance;
 
-                        Dialog_FormCaravan d1 = new Dialog_FormCaravan(__instance.Map, mapAboutToBeRemoved:true);
-                        DialogManager.PushNewDialog(d1);
-                    }
-                };
+                            if (ClientValues.chosenSettlement.Faction == FactionValues.yourOnlineFaction) OnlineFactionManager.OnFactionOpenOnMember();
+                            else OnlineFactionManager.OnFactionOpenOnNonMember();
+                        }
+                    };
 
-                if (ServerValues.hasFaction) gizmoList.Add(command_FactionMenu);
-                if (__instance.Faction != FactionValues.yourOnlineFaction) gizmoList.Add(command_Likelihood);
+                    gizmoList.Add(command_FactionMenu);
+                }
+
                 if (__instance.Map != null && __instance.Map.mapPawns.AllPawns.ToList().Find(fetch => fetch.Faction == Faction.OfPlayer) != null)
                 {
+                    Command_Action command_Caravan = new Command_Action
+                    {
+                        defaultLabel = "Form Caravan",
+                        defaultDesc = "Form a new caravan",
+                        icon = ContentFinder<Texture2D>.Get("UI/Commands/FormCaravan"),
+                        action = delegate
+                        {
+                            ClientValues.chosenSettlement = __instance;
+
+                            Dialog_FormCaravan d1 = new Dialog_FormCaravan(__instance.Map, mapAboutToBeRemoved: true);
+                            DialogManager.PushNewDialog(d1);
+                        }
+                    };
+
                     gizmoList.Add(command_Caravan);
                 }
                 __result = gizmoList;
             }
 
+            // If settlement is owned by client
             else if (__instance.Faction == Find.FactionManager.OfPlayer)
             {
                 var gizmoList = __result.ToList();
@@ -156,6 +190,7 @@ namespace GameClient
                 };
 
                 gizmoList.Add(command_FactionMenu);
+
                 __result = gizmoList;
             }
         }
@@ -164,6 +199,7 @@ namespace GameClient
     [HarmonyPatch(typeof(Settlement), "GetCaravanGizmos")]
     public static class CaravanSettlementGizmoPatch
     {
+
         [HarmonyPostfix]
         public static void DoPost(ref IEnumerable<Gizmo> __result, Settlement __instance, Caravan caravan)
         {
